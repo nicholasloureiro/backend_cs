@@ -12,7 +12,8 @@ from app.schemas.reports import HealthCheck
 
 # CORS origins from environment variable or defaults for local development
 cors_origins = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    "CORS_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000,https://grupo-cs-ac-production.up.railway.app"
 ).split(",")
 
 
