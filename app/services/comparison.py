@@ -4,13 +4,16 @@ from io import BytesIO
 
 import pandas as pd
 
+from app.services.excel_utils import find_sheet_name
+
 
 class ComparisonService:
     """Service for comparing weekly reports with inventory data."""
 
     def _read_inventory(self, inventory_content: BytesIO) -> pd.DataFrame:
         """Read the inventory Excel file and return a cleaned DataFrame."""
-        df = pd.read_excel(inventory_content, sheet_name="Estoque Produtos com Valor")
+        sheet = find_sheet_name(inventory_content, "Estoque Produtos com Valor")
+        df = pd.read_excel(inventory_content, sheet_name=sheet)
 
         # First row contains actual column headers
         df_clean = df.iloc[1:].copy()
@@ -42,7 +45,8 @@ class ComparisonService:
 
     def _read_weekly_report(self, weekly_content: BytesIO) -> pd.DataFrame:
         """Read the weekly report Excel file."""
-        df = pd.read_excel(weekly_content, sheet_name="Faturamento por Produtos")
+        sheet = find_sheet_name(weekly_content, "Faturamento por Produtos")
+        df = pd.read_excel(weekly_content, sheet_name=sheet)
 
         # Convert product code to string for matching
         df["Código do Produto"] = df["Código do Produto"].astype(str)
@@ -167,7 +171,8 @@ class ComparisonService:
 
     def _read_mazza_report(self, mazza_content: BytesIO) -> pd.DataFrame:
         """Read the Mazza report Excel file."""
-        df = pd.read_excel(mazza_content, sheet_name="RankingFaturamento")
+        sheet = find_sheet_name(mazza_content, "RankingFaturamento")
+        df = pd.read_excel(mazza_content, sheet_name=sheet)
         df["CODIGO"] = df["CODIGO"].astype(str)
         return df[["CODIGO", "NOME PRODUTO", "QUANTIDADE"]]
 

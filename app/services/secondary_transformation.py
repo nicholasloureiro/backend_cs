@@ -1,4 +1,4 @@
-"""Transformation service for weekly reports."""
+"""Transformation service for secondary format weekly reports."""
 
 from io import BytesIO
 
@@ -8,22 +8,49 @@ from app.services.excel_utils import find_sheet_name
 from app.services.pdf_parser import PDFParserService
 
 
-class TransformationService:
-    """Service for transforming weekly reports with PDF data."""
+class SecondaryTransformationService:
+    """Service for transforming secondary format weekly reports with PDF data."""
 
     def __init__(self, pdf_parser: PDFParserService):
         self.pdf_parser = pdf_parser
 
     def _read_source_excel(self, excel_content: BytesIO) -> pd.DataFrame:
-        """Read the source Excel file and return a cleaned DataFrame."""
-        sheet = find_sheet_name(excel_content, "Faturamento por Produtos")
+        """Read the secondary format Excel file and return a cleaned DataFrame."""
+        sheet = find_sheet_name(excel_content, "Faturamento produtos por Multlo")
         df = pd.read_excel(excel_content, sheet_name=sheet)
 
         # The first row contains actual column headers
         df_clean = df.iloc[1:].copy()
         df_clean.columns = df.iloc[0].values
 
-        # Select required columns
+        # Validate single store
+        if "Loja" in df_clean.columns:
+            stores = df_clean["Loja"].dropna().unique()
+            if len(stores) > 1:
+                raise ValueError(
+                    f"O relatório secundário contém múltiplas lojas ({', '.join(str(s) for s in stores)}). "
+                    "Por favor, forneça um arquivo com apenas uma loja."
+                )
+
+        # Map columns to standard format
+        df_clean["Código do Produto"] = df_clean["Código"].astype(str)
+        df_clean["Descrição"] = df_clean["Produto"]
+
+        # Combine group columns
+        df_clean["Grupo"] = (
+            df_clean["CÓD. GRUPO"].astype(str).str.strip()
+            + " - "
+            + df_clean["DESC. GRUPO"].astype(str).str.strip()
+        )
+
+        df_clean["Quantidade Líquida"] = pd.to_numeric(
+            df_clean["Qtde vendida"], errors="coerce"
+        ).fillna(0)
+
+        # Secondary format has no Estoque column — set to 0, comparison will fill from inventory
+        df_clean["Estoque"] = 0
+
+        # Select only the standard columns
         cols = [
             "Código do Produto",
             "Descrição",
@@ -33,18 +60,9 @@ class TransformationService:
         ]
         df_clean = df_clean[cols].copy()
 
-        # Convert numeric columns
-        df_clean["Código do Produto"] = df_clean["Código do Produto"].astype(str)
-        df_clean["Estoque"] = pd.to_numeric(
-            df_clean["Estoque"], errors="coerce"
-        ).fillna(0)
-        df_clean["Quantidade Líquida"] = pd.to_numeric(
-            df_clean["Quantidade Líquida"], errors="coerce"
-        ).fillna(0)
-
         # Filter out totals row
         df_clean = df_clean[
-            ~df_clean["Descrição"].str.contains("Totais", case=False, na=False)
+            ~df_clean["Descrição"].astype(str).str.contains("Totais", case=False, na=False)
         ]
 
         return df_clean
@@ -156,10 +174,10 @@ class TransformationService:
         pedido_pdfs: list[bytes],
     ) -> BytesIO:
         """
-        Process the weekly report with PDF data.
+        Process the secondary format weekly report with PDF data.
 
         Args:
-            weekly_excel: Weekly report Excel file content
+            weekly_excel: Weekly report Excel file content (secondary format)
             nf_pdfs: List of NF PDF file contents
             pedido_pdfs: List of Pedido PDF file contents
 

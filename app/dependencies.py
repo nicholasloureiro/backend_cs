@@ -4,6 +4,7 @@ from functools import lru_cache
 
 from app.services.pdf_parser import PDFParserService
 from app.services.transformation import TransformationService
+from app.services.secondary_transformation import SecondaryTransformationService
 from app.services.comparison import ComparisonService
 
 
@@ -17,6 +18,12 @@ def get_transformation_service() -> TransformationService:
     """Get transformation service instance."""
     pdf_parser = get_pdf_parser_service()
     return TransformationService(pdf_parser=pdf_parser)
+
+
+def get_secondary_transformation_service() -> SecondaryTransformationService:
+    """Get secondary transformation service instance."""
+    pdf_parser = get_pdf_parser_service()
+    return SecondaryTransformationService(pdf_parser=pdf_parser)
 
 
 def get_comparison_service() -> ComparisonService:

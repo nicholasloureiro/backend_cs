@@ -129,6 +129,52 @@ def sample_mazza_excel() -> BytesIO:
 
 
 @pytest.fixture
+def sample_mazza_excel_variant_sheet() -> BytesIO:
+    """Create a sample Mazza report Excel file with variant sheet name."""
+    df = pd.DataFrame(
+        {
+            "CODIGO": ["1234567", "9999999"],
+            "NOME PRODUTO": ["PRODUTO EXISTENTE", "PRODUTO NOVO MAZZA"],
+            "QUANTIDADE": [50, 100],
+            "VALOR TOTAL CATÁLOGO": [1000.0, 2000.0],
+            "VALOR TOTAL FATURADO": [500.0, 1000.0],
+        }
+    )
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="RankingFaturamento (2)", index=False)
+    output.seek(0)
+    return output
+
+
+@pytest.fixture
+def sample_inventory_excel_variant_sheet() -> BytesIO:
+    """Create a sample inventory Excel file with variant sheet name."""
+    df = pd.DataFrame(
+        {
+            0: ["Header Row", "Cód. Loja", "6835", "6835"],
+            1: ["Header Row", "Loja", "MG UBERLANDIA SH PATIO SABIA", "MG UBERLANDIA SH PATIO SABIA"],
+            2: ["Header Row", "Cód Produto", "1234567", "3456789"],
+            3: ["Header Row", "Desc Produto", "PRODUTO TESTE A", "PRODUTO NOVO C"],
+            4: ["Header Row", "Cod Grupo", "1014", "1013"],
+            5: ["Header Row", "Desc GRUPO", "Funcionais", "Pascoa"],
+            6: ["Header Row", "Quantidade", 150, 30],
+            7: ["Header Row", "R$ CUSTO UN", 10.0, 15.0],
+            8: ["Header Row", "R$ CUSTO TOTAL ITEM", 1500.0, 450.0],
+            9: ["Header Row", "R$ VENDA UN", 20.0, 30.0],
+            10: ["Header Row", "R$ VENDA TOTAL ITEM", 3000.0, 900.0],
+        }
+    )
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Estoque Produtos com Valor (2)", index=False, header=False)
+    output.seek(0)
+    return output
+
+
+@pytest.fixture
 def sample_inventory_excel_1225() -> BytesIO:
     """Create a sample inventory Excel file for store 1225."""
     df = pd.DataFrame(

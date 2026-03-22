@@ -6,8 +6,9 @@ from io import BytesIO
 from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import StreamingResponse
 
-from app.dependencies import get_transformation_service, get_comparison_service
+from app.dependencies import get_transformation_service, get_secondary_transformation_service, get_comparison_service
 from app.services.transformation import TransformationService
+from app.services.secondary_transformation import SecondaryTransformationService
 from app.services.comparison import ComparisonService
 
 
@@ -150,4 +151,85 @@ async def compare_reports(
         final_output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.post("/process-secondary")
+async def process_secondary_reports(
+    weekly_report: UploadFile = File(..., description="Secondary format weekly report Excel file"),
+    inventory_report: UploadFile = File(..., description="Inventory Excel file"),
+    nf_pdfs: list[UploadFile] = File(default=[], description="NF PDF files"),
+    pedido_pdfs: list[UploadFile] = File(default=[], description="Pedido PDF files"),
+    mazza_report: UploadFile = File(default=None, description="Mazza report Excel file (optional, only for store 1225)"),
+    secondary_service: SecondaryTransformationService = Depends(get_secondary_transformation_service),
+    comparison_service: ComparisonService = Depends(get_comparison_service),
+) -> StreamingResponse:
+    """
+    Process secondary format weekly report with inventory comparison.
+
+    Same pipeline as /process but handles the secondary Excel format
+    (sheet "Faturamento produtos por Multlo").
+    """
+    # Read file contents
+    weekly_content = BytesIO(await weekly_report.read())
+    inventory_content = BytesIO(await inventory_report.read())
+
+    nf_pdf_contents = [await pdf.read() for pdf in nf_pdfs]
+    pedido_pdf_contents = [await pdf.read() for pdf in pedido_pdfs]
+
+    mazza_content = None
+    if mazza_report:
+        mazza_content = BytesIO(await mazza_report.read())
+
+    # Step 1: Transform secondary format weekly report with PDF data
+    transformed = secondary_service.process(
+        weekly_excel=weekly_content,
+        nf_pdfs=nf_pdf_contents,
+        pedido_pdfs=pedido_pdf_contents,
+    )
+
+    # Step 2: Compare with inventory (and merge Mazza if provided)
+    final_output, store_code, store_name = comparison_service.compare(
+        weekly_report=transformed,
+        inventory_report=inventory_content,
+        mazza_report=mazza_content,
+    )
+
+    # Generate dynamic filename
+    filename = _generate_filename(store_code, store_name)
+
+    return StreamingResponse(
+        final_output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.post("/transform-secondary")
+async def transform_secondary_report(
+    weekly_report: UploadFile = File(..., description="Secondary format weekly report Excel file"),
+    nf_pdfs: list[UploadFile] = File(default=[], description="NF PDF files"),
+    pedido_pdfs: list[UploadFile] = File(default=[], description="Pedido PDF files"),
+    secondary_service: SecondaryTransformationService = Depends(get_secondary_transformation_service),
+) -> StreamingResponse:
+    """
+    Transform secondary format weekly report with PDF data (partial processing).
+    """
+    weekly_content = BytesIO(await weekly_report.read())
+
+    nf_pdf_contents = [await pdf.read() for pdf in nf_pdfs]
+    pedido_pdf_contents = [await pdf.read() for pdf in pedido_pdfs]
+
+    transformed = secondary_service.process(
+        weekly_excel=weekly_content,
+        nf_pdfs=nf_pdf_contents,
+        pedido_pdfs=pedido_pdf_contents,
+    )
+
+    return StreamingResponse(
+        transformed,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=Relatorio_Secundario_Semanal_Output.xlsx"
+        },
     )
