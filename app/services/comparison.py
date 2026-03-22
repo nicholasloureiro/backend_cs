@@ -4,7 +4,7 @@ from io import BytesIO
 
 import pandas as pd
 
-from app.services.excel_utils import find_sheet_name
+from app.services.excel_utils import find_sheet_name, find_columns
 
 
 class ComparisonService:
@@ -19,8 +19,8 @@ class ComparisonService:
         df_clean = df.iloc[1:].copy()
         df_clean.columns = df.iloc[0].values
 
-        # Select columns we need
-        cols_to_keep = [
+        # Select columns we need (with fuzzy matching for column name variants)
+        expected_cols = [
             "Cód. Loja",
             "Loja",
             "Cód Produto",
@@ -33,7 +33,11 @@ class ComparisonService:
             "R$ VENDA UN",
             "R$ VENDA TOTAL ITEM",
         ]
-        df_clean = df_clean[cols_to_keep].copy()
+        col_map = find_columns(df_clean, expected_cols)
+
+        # Select and rename to standard names
+        df_clean = df_clean[[col_map[c] for c in expected_cols]].copy()
+        df_clean.columns = expected_cols
 
         # Convert types
         df_clean["Cód Produto"] = df_clean["Cód Produto"].astype(str)
