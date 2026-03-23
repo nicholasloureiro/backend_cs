@@ -69,6 +69,11 @@ class ComparisonService:
         """
         result_df = weekly_df.copy()
 
+        # Ensure numeric columns are float to avoid dtype errors when setting values
+        for col in ["Estoque", "Pedido", "Total", "Saídas"]:
+            if col in result_df.columns:
+                result_df[col] = pd.to_numeric(result_df[col], errors="coerce").astype(float)
+
         # Get store code from inventory (applies to ALL products since inventory is per-store)
         store_code = inventory_df["Cód. Loja"].iloc[0] if len(inventory_df) > 0 else None
 

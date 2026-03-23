@@ -85,6 +85,25 @@ def find_sheet_name(file_content: BytesIO, expected_name: str) -> str:
     if len(matches) == 1:
         return matches[0]
 
+    # Normalized match: compare without accents/punctuation
+    norm_expected = _normalize(expected_name)
+    for s in sheet_names:
+        if _normalize(s) == norm_expected:
+            return s
+
+    # Word overlap match: find sheets sharing significant words
+    expected_words = set(norm_expected.split())
+    best_match = None
+    best_overlap = 0
+    for s in sheet_names:
+        sheet_words = set(_normalize(s).split())
+        overlap = len(expected_words & sheet_words)
+        if overlap >= 2 and overlap > best_overlap:
+            best_overlap = overlap
+            best_match = s
+    if best_match:
+        return best_match
+
     # Fallback: single sheet in workbook
     if len(sheet_names) == 1:
         return sheet_names[0]

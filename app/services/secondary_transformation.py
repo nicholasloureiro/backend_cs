@@ -47,8 +47,8 @@ class SecondaryTransformationService:
             df_clean["Qtde vendida"], errors="coerce"
         ).fillna(0)
 
-        # Secondary format has no Estoque column — set to 0, comparison will fill from inventory
-        df_clean["Estoque"] = 0
+        # Secondary format has no Estoque column — set to 0.0 (float to accept inventory values)
+        df_clean["Estoque"] = 0.0
 
         # Select only the standard columns
         cols = [
