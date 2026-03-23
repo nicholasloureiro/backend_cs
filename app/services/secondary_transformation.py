@@ -4,7 +4,7 @@ from io import BytesIO
 
 import pandas as pd
 
-from app.services.excel_utils import find_sheet_name
+from app.services.excel_utils import find_sheet_name, normalize_product_code
 from app.services.pdf_parser import PDFParserService
 
 
@@ -33,7 +33,7 @@ class SecondaryTransformationService:
                 )
 
         # Map columns to standard format
-        df_clean["Código do Produto"] = df_clean["Código"].astype(str)
+        df_clean["Código do Produto"] = normalize_product_code(df_clean["Código"])
         df_clean["Descrição"] = df_clean["Produto"]
 
         # Combine group columns

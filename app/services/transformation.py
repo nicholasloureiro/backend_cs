@@ -4,7 +4,7 @@ from io import BytesIO
 
 import pandas as pd
 
-from app.services.excel_utils import find_sheet_name
+from app.services.excel_utils import find_sheet_name, normalize_product_code
 from app.services.pdf_parser import PDFParserService
 
 
@@ -34,7 +34,7 @@ class TransformationService:
         df_clean = df_clean[cols].copy()
 
         # Convert numeric columns
-        df_clean["Código do Produto"] = df_clean["Código do Produto"].astype(str)
+        df_clean["Código do Produto"] = normalize_product_code(df_clean["Código do Produto"])
         df_clean["Estoque"] = pd.to_numeric(
             df_clean["Estoque"], errors="coerce"
         ).fillna(0)

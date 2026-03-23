@@ -54,6 +54,14 @@ def find_columns(df: pd.DataFrame, expected_names: list[str]) -> dict[str, str]:
     return {name: find_column(columns, name) for name in expected_names}
 
 
+def normalize_product_code(series: pd.Series) -> pd.Series:
+    """Convert product codes to clean strings without '.0' suffix.
+
+    Handles numeric codes stored as floats (e.g., 1000024.0 -> '1000024').
+    """
+    return pd.to_numeric(series, errors="coerce").fillna(0).astype(int).astype(str)
+
+
 def find_sheet_name(file_content: BytesIO, expected_name: str) -> str:
     """Find the best matching sheet name, allowing for variants like '(2)' suffixes.
 

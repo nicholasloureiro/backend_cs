@@ -4,7 +4,7 @@ from io import BytesIO
 
 import pandas as pd
 
-from app.services.excel_utils import find_sheet_name, find_columns
+from app.services.excel_utils import find_sheet_name, find_columns, normalize_product_code
 
 
 class ComparisonService:
@@ -40,7 +40,7 @@ class ComparisonService:
         df_clean.columns = expected_cols
 
         # Convert types
-        df_clean["Cód Produto"] = df_clean["Cód Produto"].astype(str)
+        df_clean["Cód Produto"] = normalize_product_code(df_clean["Cód Produto"])
         df_clean["Quantidade"] = pd.to_numeric(
             df_clean["Quantidade"], errors="coerce"
         ).fillna(0)
@@ -53,7 +53,7 @@ class ComparisonService:
         df = pd.read_excel(weekly_content, sheet_name=sheet)
 
         # Convert product code to string for matching
-        df["Código do Produto"] = df["Código do Produto"].astype(str)
+        df["Código do Produto"] = normalize_product_code(df["Código do Produto"])
 
         return df
 
