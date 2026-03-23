@@ -7,10 +7,12 @@ import pandas as pd
 
 
 def _normalize(text: str) -> str:
-    """Normalize text for fuzzy comparison: lowercase, strip accents, collapse whitespace."""
+    """Normalize text for fuzzy comparison: lowercase, strip accents/punctuation, collapse whitespace."""
     text = str(text).strip().lower()
     text = unicodedata.normalize("NFD", text)
     text = "".join(c for c in text if unicodedata.category(c) != "Mn")
+    # Remove punctuation (dots, commas, etc.) to handle variants like "Cód. Produto" vs "Cód Produto"
+    text = "".join(c for c in text if c.isalnum() or c.isspace())
     text = " ".join(text.split())
     return text
 
