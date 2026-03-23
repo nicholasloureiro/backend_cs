@@ -60,9 +60,9 @@ class SecondaryTransformationService:
         ]
         df_clean = df_clean[cols].copy()
 
-        # Filter out totals row
+        # Filter out totals rows (handles both "Totais" and "TOTAL ===>")
         df_clean = df_clean[
-            ~df_clean["Descrição"].astype(str).str.contains("Totais", case=False, na=False)
+            ~df_clean["Descrição"].astype(str).str.contains("Totais|TOTAL", case=False, na=False)
         ]
 
         return df_clean
