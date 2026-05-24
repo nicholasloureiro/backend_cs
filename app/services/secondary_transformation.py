@@ -4,7 +4,12 @@ from io import BytesIO
 
 import pandas as pd
 
-from app.services.excel_utils import find_sheet_name, normalize_product_code
+from app.services.excel_utils import (
+    find_columns,
+    has_column,
+    normalize_product_code,
+    read_report_sheet,
+)
 from app.services.pdf_parser import PDFParserService
 
 
@@ -15,14 +20,24 @@ class SecondaryTransformationService:
         self.pdf_parser = pdf_parser
 
     def _read_source_excel(self, excel_content: BytesIO) -> pd.DataFrame:
-        """Read the secondary format Excel file and return a cleaned DataFrame."""
-        sheet = find_sheet_name(excel_content, "Faturamento produtos por Multlo")
-        df = pd.read_excel(excel_content, sheet_name=sheet)
+        """Read the secondary format Excel file and return a cleaned DataFrame.
 
-        # The first row contains actual column headers
-        df_clean = df.iloc[1:].copy()
-        df_clean.columns = df.iloc[0].values
+        Two layouts are supported:
+        - the original "Multiloja" export, with columns "Código"/"Produto"/
+          "Qtde vendida" and no stock data; and
+        - the newer export that shares the primary report's layout, with
+          "Código do Produto"/"Descrição"/"Grupo"/"Estoque"/"Quantidade Líquida".
+        """
+        df_clean = read_report_sheet(excel_content, "Faturamento produtos por Multlo")
 
+        # "Qtde vendida" is unique to the original Multiloja layout; its absence
+        # means we're dealing with the newer (primary-style) layout.
+        if has_column(list(df_clean.columns), "Qtde vendida"):
+            return self._read_multiloja_format(df_clean)
+        return self._read_standard_format(df_clean)
+
+    def _read_multiloja_format(self, df_clean: pd.DataFrame) -> pd.DataFrame:
+        """Clean the original Multiloja secondary layout into standard columns."""
         # Validate single store
         if "Loja" in df_clean.columns:
             stores = df_clean["Loja"].dropna().unique()
@@ -49,6 +64,54 @@ class SecondaryTransformationService:
 
         # Secondary format has no Estoque column — set to 0.0 (float to accept inventory values)
         df_clean["Estoque"] = 0.0
+
+        # Select only the standard columns
+        cols = [
+            "Código do Produto",
+            "Descrição",
+            "Grupo",
+            "Estoque",
+            "Quantidade Líquida",
+        ]
+        df_clean = df_clean[cols].copy()
+
+        # Filter out totals rows (handles both "Totais" and "TOTAL ===>")
+        df_clean = df_clean[
+            ~df_clean["Descrição"].astype(str).str.contains("Totais|TOTAL", case=False, na=False)
+        ]
+
+        return df_clean
+
+    def _read_standard_format(self, df_clean: pd.DataFrame) -> pd.DataFrame:
+        """Clean the newer layout (shared with the primary report) into standard columns.
+
+        This layout already provides the standard columns directly, including
+        real Estoque and Quantidade Líquida values.
+        """
+        col_map = find_columns(
+            df_clean,
+            [
+                "Código do Produto",
+                "Descrição",
+                "Grupo",
+                "Estoque",
+                "Quantidade Líquida",
+            ],
+        )
+
+        df_clean["Código do Produto"] = normalize_product_code(
+            df_clean[col_map["Código do Produto"]]
+        )
+        df_clean["Descrição"] = df_clean[col_map["Descrição"]]
+        df_clean["Grupo"] = df_clean[col_map["Grupo"]]
+        df_clean["Estoque"] = (
+            pd.to_numeric(df_clean[col_map["Estoque"]], errors="coerce")
+            .fillna(0)
+            .astype(float)
+        )
+        df_clean["Quantidade Líquida"] = pd.to_numeric(
+            df_clean[col_map["Quantidade Líquida"]], errors="coerce"
+        ).fillna(0)
 
         # Select only the standard columns
         cols = [

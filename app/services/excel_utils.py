@@ -45,6 +45,15 @@ def find_column(columns: list, expected_name: str) -> str:
     )
 
 
+def has_column(columns: list, expected_name: str) -> bool:
+    """Return True if a column matching expected_name exists (fuzzy match)."""
+    try:
+        find_column(columns, expected_name)
+        return True
+    except KeyError:
+        return False
+
+
 def find_columns(df: pd.DataFrame, expected_names: list[str]) -> dict[str, str]:
     """Map expected column names to actual column names in a DataFrame.
 
@@ -60,6 +69,47 @@ def normalize_product_code(series: pd.Series) -> pd.Series:
     Handles numeric codes stored as floats (e.g., 1000024.0 -> '1000024').
     """
     return pd.to_numeric(series, errors="coerce").fillna(0).astype(int).astype(str)
+
+
+# Column names that identify a real header row in a weekly report sheet.
+_HEADER_MARKERS = (
+    "Código do Produto",
+    "Código",
+    "Loja",
+    "Produto",
+    "Descrição",
+    "Qtde vendida",
+)
+
+
+def _columns_are_header(columns: list) -> bool:
+    """True if the given columns already look like a real header row.
+
+    Uses normalized equality (not partial matching) so a title like
+    "Faturamento produtos por Multloja" is not mistaken for a "Loja" header.
+    """
+    norm_cols = {_normalize(str(c)) for c in columns}
+    return any(_normalize(m) in norm_cols for m in _HEADER_MARKERS)
+
+
+def read_report_sheet(file_content: BytesIO, expected_sheet: str) -> pd.DataFrame:
+    """Read a weekly report sheet, tolerating an optional leading title row.
+
+    Some exports put a title in the first sheet row (so the real column names
+    land on the second row); others put the column names on the first row.
+    Returns a DataFrame whose columns are the real header.
+    """
+    sheet = find_sheet_name(file_content, expected_sheet)
+    df = pd.read_excel(file_content, sheet_name=sheet)
+
+    # When a title row precedes the header, pandas reads the title as the
+    # column index, so the real header sits in the first data row.
+    if _columns_are_header(df.columns):
+        return df.copy()
+
+    df_clean = df.iloc[1:].copy()
+    df_clean.columns = df.iloc[0].values
+    return df_clean
 
 
 def find_sheet_name(file_content: BytesIO, expected_name: str) -> str:

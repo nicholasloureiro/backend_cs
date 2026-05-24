@@ -4,7 +4,7 @@ from io import BytesIO
 
 import pandas as pd
 
-from app.services.excel_utils import find_sheet_name, normalize_product_code
+from app.services.excel_utils import normalize_product_code, read_report_sheet
 from app.services.pdf_parser import PDFParserService
 
 
@@ -16,12 +16,7 @@ class TransformationService:
 
     def _read_source_excel(self, excel_content: BytesIO) -> pd.DataFrame:
         """Read the source Excel file and return a cleaned DataFrame."""
-        sheet = find_sheet_name(excel_content, "Faturamento por Produtos")
-        df = pd.read_excel(excel_content, sheet_name=sheet)
-
-        # The first row contains actual column headers
-        df_clean = df.iloc[1:].copy()
-        df_clean.columns = df.iloc[0].values
+        df_clean = read_report_sheet(excel_content, "Faturamento por Produtos")
 
         # Select required columns
         cols = [
